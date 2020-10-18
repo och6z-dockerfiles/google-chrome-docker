@@ -1,0 +1,48 @@
+ARG IMAGE_VERSION
+
+FROM debian:${IMAGE_VERSION}
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    libpulse0 \
+    libgl1 \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    google-chrome-stable \
+    && apt-get purge --auto-remove -y curl && apt-get autoremove -y && apt-get autoclean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG GID
+ARG GID_NAME
+ARG UID
+ARG UID_NAME
+
+RUN groupadd --gid ${GID} ${UID_NAME} \
+    && useradd --uid ${UID} \
+    --no-user-group \
+    --gid ${GID} \
+    --groups audio,video \
+    --home-dir /home/${UID_NAME} \
+    --create-home \
+    --shell /bin/bash \
+    ${UID_NAME}
+
+USER ${UID_NAME}
+
+WORKDIR /home/${UID_NAME}
+
+ENTRYPOINT ["/bin/bash", "-c"]
+
+CMD ["google-chrome --no-sandbox"]
+
+#docker builder build --no-cache --build-arg IMAGE_VERSION=unstable-slim --build-arg GID=$(id -g) --build-arg GID_NAME=$(id -gn) --build-arg UID=$(id -u) --build-arg UID_NAME=$(id -un) --file Dockerfile.debian --tag image-name:version .
+#xhost +local:docker
+#docker container run --interactive --tty --device /dev/snd --device /dev/dri --volume /tmp/.X11-unix:/tmp/.X11-unix --volume /dev/shm:/dev/shm --env DISPLAY=unix$DISPLAY --name container-name image-name:version
